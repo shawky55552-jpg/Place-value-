@@ -1,0 +1,72 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Place Value Challenge</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <section id="start-screen" class="screen active">
+        <div class="panel start-panel">
+          <div class="badge">Grade 2 Challenge</div>
+          <h1>Place Value Challenge</h1>
+          <p>Can you find the tens and ones?</p>
+          <div class="start-actions">
+            <button class="primary-btn" id="start-btn">Start Game</button>
+            <button class="secondary-btn" id="sound-toggle-start">🔊 Sound On</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="game-screen" class="screen">
+        <header class="topbar">
+          <div class="brand-wrap">
+            <div class="brand-icon">🔢</div>
+            <div class="brand-text">Place Value Challenge</div>
+          </div>
+
+          <div class="top-controls">
+            <div class="progress-pill">
+              <span>Question</span>
+              <strong id="question-count">1 / 30</strong>
+            </div>
+            <button class="secondary-btn" id="sound-toggle">🔊 Sound On</button>
+          </div>
+        </header>
+
+        <main class="game-shell">
+          <aside class="mascot-panel">
+            <div class="mascot">
+              <div class="mascot-face">
+                <span class="eye left"></span>
+                <span class="eye right"></span>
+                <span class="smile"></span>
+              </div>
+            </div>
+            <div id="speech-bubble" class="speech-bubble">Ready?</div>
+          </aside>
+
+          <div class="question-panel">
+            <div id="question-area" class="question-area"></div>
+            <div id="answer-area" class="answer-area"></div>
+            <div id="result-area" class="result-area"></div>
+          </div>
+        </main>
+      </section>
+
+      <section id="finish-screen" class="screen">
+        <div class="panel finish-panel">
+          <div class="confetti">🎉 ✨ ⭐</div>
+          <h2>Fantastic Work! 🎉</h2>
+          <p id="finish-summary">You completed the Place Value Challenge!</p>
+          <div class="finish-stars" id="finish-stars"></div>
+          <button class="primary-btn" id="play-again-btn">Play Again</button>
+        </div>
+      </section>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
