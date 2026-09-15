@@ -17,21 +17,9 @@ const finishStars = document.getElementById("finish-stars");
 
 const allScreens = [startScreen, gameScreen, finishScreen];
 
-const numbers = [12, 18, 24, 31, 36, 47, 52, 58, 63, 71, 75, 82, 89, 94, 26, 39, 41, 54, 67, 73, 85, 97, 14, 29, 43, 56, 68, 77, 88, 95];
+const numbers = Array.from({ length: 1000 }, (_, number) => number);
 const numberWords = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
-const tensWords = ["", "Ten", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-const nameQuestionSeeds = [
-  { digit: 6, place: "ones" },
-  { digit: 6, place: "tens" },
-  { digit: 4, place: "ones" },
-  { digit: 4, place: "tens" },
-  { digit: 7, place: "ones" },
-  { digit: 7, place: "tens" },
-  { digit: 3, place: "ones" },
-  { digit: 3, place: "tens" },
-  { digit: 8, place: "ones" },
-  { digit: 8, place: "tens" }
-];
+const placeLabels = ["Hundreds", "Tens", "Ones"];
 
 const state = {
   questions: [],
@@ -39,9 +27,8 @@ const state = {
   soundEnabled: true,
   currentQuestion: null,
   answered: false,
-  type1Selections: { 0: null, 1: null },
-  type3Selection: null,
-  type4Selection: null
+  type1Selections: { 0: null, 1: null, 2: null },
+  selectedChoice: null
 };
 
 function shuffleArray(items) {
@@ -55,34 +42,8 @@ function shuffleArray(items) {
   return result;
 }
 
-function buildNameChoices(answer, place) {
-  const pool = place === "ones" ? numberWords.slice(1) : tensWords.slice(1);
-  const distractors = shuffleArray(
-    pool.filter((name) => name !== answer)
-  ).slice(0, 3);
-
-  return shuffleArray([answer, ...distractors]);
-}
-
-function buildNameQuestions() {
-  return nameQuestionSeeds.map((seed, index) => {
-    const answer = seed.place === "ones"
-      ? numberWords[seed.digit]
-      : tensWords[seed.digit];
-
-    return {
-      id: 1000 + index,
-      type: "name",
-      digit: seed.digit,
-      place: seed.place,
-      answer,
-      choices: buildNameChoices(answer, seed.place)
-    };
-  });
-}
-
-function buildPlaceValueChoices(answer) {
-  const distractorPool = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 60, 70, 80, 90];
+function buildChoices(answer, maximum = 999) {
+  const distractorPool = Array.from({ length: maximum + 1 }, (_, value) => value);
   const distractors = shuffleArray(
     distractorPool.filter((value) => value !== answer)
   ).slice(0, 3);
@@ -90,7 +51,7 @@ function buildPlaceValueChoices(answer) {
   return shuffleArray([answer, ...distractors]).slice(0, 4);
 }
 
-function buildPlaceValueQuestions(targetCount = 12) {
+function buildPlaceValueQuestions(targetCount = 6) {
   const candidates = [];
   const promptTemplates = [
     (digit, number) => `What is the value of ${digit} in ${number}?`,
@@ -99,43 +60,43 @@ function buildPlaceValueQuestions(targetCount = 12) {
   ];
 
   numbers.forEach((number, index) => {
-    const tensDigit = Math.floor(number / 10);
-    const onesDigit = number % 10;
-
-    const tensPrompt = promptTemplates[index % promptTemplates.length](tensDigit, number);
-    const onesPrompt = promptTemplates[(index + 1) % promptTemplates.length](onesDigit, number);
-
+    const digits = getDigits(number);
+    const place = index % 3;
+    const digit = digits[place];
+    const multiplier = 10 ** (2 - place);
     candidates.push({
-      id: 2000 + index * 2,
+      id: 2000 + index,
       type: "placevalue",
       number,
-      digit: tensDigit,
-      place: "tens",
-      prompt: tensPrompt,
-      answer: tensDigit * 10,
-      choices: buildPlaceValueChoices(tensDigit * 10)
-    });
-
-    candidates.push({
-      id: 2000 + index * 2 + 1,
-      type: "placevalue",
-      number,
-      digit: onesDigit,
-      place: "ones",
-      prompt: onesPrompt,
-      answer: onesDigit,
-      choices: buildPlaceValueChoices(onesDigit)
+      digit,
+      place,
+      prompt: promptTemplates[index % promptTemplates.length](digit, number),
+      answer: digit * multiplier,
+      choices: buildChoices(digit * multiplier)
     });
   });
 
-  const tensQuestions = shuffleArray(candidates.filter((question) => question.place === "tens"));
-  const onesQuestions = shuffleArray(candidates.filter((question) => question.place === "ones"));
-  const balancedCount = Math.floor(targetCount / 2);
+  return shuffleArray(candidates).slice(0, targetCount);
+}
 
-  return shuffleArray([
-    ...tensQuestions.slice(0, balancedCount),
-    ...onesQuestions.slice(0, balancedCount)
-  ]);
+function getDigits(number) {
+  return [Math.floor(number / 100), Math.floor(number / 10) % 10, number % 10];
+}
+
+function buildPlaceQuestions(targetCount = 6) {
+  return shuffleArray(numbers).slice(0, targetCount).map((number, index) => {
+    const place = index % 3;
+    const answer = getDigits(number)[place];
+    return { id: 3000 + index, type: "place", number, place, answer, prompt: `How many ${placeLabels[place]} are in ${number}?`, choices: buildChoices(answer, 9) };
+  });
+}
+
+function buildDigitQuestions(targetCount = 6) {
+  return shuffleArray(numbers).slice(0, targetCount).map((number, index) => {
+    const place = (index + 1) % 3;
+    const answer = getDigits(number)[place];
+    return { id: 4000 + index, type: "digit", number, place, answer, prompt: `What digit is in the ${placeLabels[place]} place in ${number}?`, choices: buildChoices(answer, 9) };
+  });
 }
 
 function buildQuestionBank() {
@@ -151,14 +112,16 @@ function buildQuestionBank() {
     number
   }));
 
-  const nameQuestions = buildNameQuestions().slice(0, 6);
-  const placeValueQuestions = buildPlaceValueQuestions(12);
+  const placeValueQuestions = buildPlaceValueQuestions(6);
+  const placeQuestions = buildPlaceQuestions(6);
+  const digitQuestions = buildDigitQuestions(6);
 
   return shuffleArray([
     ...numberQuestions,
     ...valueQuestions,
-    ...nameQuestions,
-    ...placeValueQuestions
+    ...placeValueQuestions,
+    ...placeQuestions,
+    ...digitQuestions
   ]).slice(0, 30);
 }
 
@@ -240,9 +203,8 @@ function startGame() {
   state.currentIndex = 0;
   state.currentQuestion = null;
   state.answered = false;
-  state.type1Selections = { 0: null, 1: null };
-  state.type3Selection = null;
-  state.type4Selection = null;
+  state.type1Selections = { 0: null, 1: null, 2: null };
+  state.selectedChoice = null;
   setCharacterMood("");
   showScreen("game");
   loadQuestion();
@@ -251,21 +213,20 @@ function startGame() {
 function loadQuestion() {
   state.currentQuestion = state.questions[state.currentIndex];
   state.answered = false;
-  state.type1Selections = { 0: null, 1: null };
-  state.type3Selection = null;
-  state.type4Selection = null;
+  state.type1Selections = { 0: null, 1: null, 2: null };
+  state.selectedChoice = null;
   setCharacterMood("");
 
   questionCount.textContent = `${state.currentIndex + 1} / ${state.questions.length}`;
 
   if (state.currentQuestion.type === "number") {
-    speechBubble.textContent = "Pick the Tens and Ones for each digit.";
+    speechBubble.textContent = "Match each digit to its place.";
   } else if (state.currentQuestion.type === "values") {
-    speechBubble.textContent = "Build the number from the Tens and Ones.";
-  } else if (state.currentQuestion.type === "name") {
-    speechBubble.textContent = "Choose the number name for the digit and place.";
+    speechBubble.textContent = "Build the number from the place values.";
+  } else if (state.currentQuestion.type === "placevalue") {
+    speechBubble.textContent = "Find what the digit is worth.";
   } else {
-    speechBubble.textContent = "Choose the value of the digit.";
+    speechBubble.textContent = "Read the number carefully.";
   }
 
   resultArea.innerHTML = "";
@@ -276,11 +237,14 @@ function loadQuestion() {
     answerArea.innerHTML = buildType1Board(state.currentQuestion.number);
     attachType1Events();
   } else if (state.currentQuestion.type === "values") {
-    const tens = Math.floor(state.currentQuestion.number / 10);
-    const ones = state.currentQuestion.number % 10;
+    const [hundreds, tens, ones] = getDigits(state.currentQuestion.number);
     questionArea.innerHTML = `
       <div class="value-question">
         <div class="value-stack">
+          <div class="value-box">
+            <span class="value-label">Hundreds</span>
+            <span class="value-number">${hundreds}</span>
+          </div>
           <div class="value-box">
             <span class="value-label">Tens</span>
             <span class="value-number">${tens}</span>
@@ -295,31 +259,7 @@ function loadQuestion() {
     `;
     answerArea.innerHTML = buildType2Board();
     attachType2Events();
-  } else if (state.currentQuestion.type === "name") {
-    const placeLabel = state.currentQuestion.place === "tens" ? "Tens" : "Ones";
-    const promptText = state.currentQuestion.place === "tens"
-      ? `What does ${state.currentQuestion.digit} represent in the Tens place?`
-      : `What is the value of ${state.currentQuestion.digit} in the Ones place?`;
-
-    questionArea.innerHTML = `
-      <div class="value-question">
-        <div class="value-stack">
-          <div class="value-box">
-            <span class="value-label">Digit</span>
-            <span class="value-number">${state.currentQuestion.digit}</span>
-          </div>
-          <div class="value-box">
-            <span class="value-label">Place</span>
-            <span class="value-number">${placeLabel}</span>
-          </div>
-        </div>
-        <div class="prompt-text">${promptText}</div>
-      </div>
-    `;
-
-    answerArea.innerHTML = buildType3Board(state.currentQuestion);
-    attachType3Events();
-  } else {
+  } else if (["placevalue", "place", "digit"].includes(state.currentQuestion.type)) {
     questionArea.innerHTML = `
       <div class="value-question">
         <div class="value-stack">
@@ -327,41 +267,35 @@ function loadQuestion() {
             <span class="value-label">Number</span>
             <span class="value-number">${state.currentQuestion.number}</span>
           </div>
-          <div class="value-box">
-            <span class="value-label">Digit</span>
-            <span class="value-number">${state.currentQuestion.digit}</span>
-          </div>
+          ${state.currentQuestion.type === "placevalue" ? `
+            <div class="value-box">
+              <span class="value-label">Digit</span>
+              <span class="value-number">${state.currentQuestion.digit}</span>
+            </div>
+          ` : ""}
         </div>
         <div class="prompt-text">${state.currentQuestion.prompt}</div>
       </div>
     `;
 
-    answerArea.innerHTML = buildType4Board(state.currentQuestion);
-    attachType4Events();
+    answerArea.innerHTML = buildChoiceBoard(state.currentQuestion);
+    attachChoiceEvents();
   }
 }
 
 function buildType1Board(number) {
-  const tensDigit = Math.floor(number / 10);
-  const onesDigit = number % 10;
+  const digits = getDigits(number);
 
   return `
     <div class="type1-board">
-      <div class="digit-row" data-index="0">
-        <div class="digit-spot">${tensDigit}</div>
+      ${digits.map((digit, index) => `
+      <div class="digit-row" data-index="${index}">
+        <div class="digit-spot">${digit}</div>
         <div class="choice-pair">
-          <button class="choice-btn" data-index="0" data-place="tens">Tens</button>
-          <button class="choice-btn" data-index="0" data-place="ones">Ones</button>
+          ${placeLabels.map((place, placeIndex) => `<button class="choice-btn" data-index="${index}" data-place="${placeIndex}">${place}</button>`).join("")}
         </div>
       </div>
-
-      <div class="digit-row" data-index="1">
-        <div class="digit-spot">${onesDigit}</div>
-        <div class="choice-pair">
-          <button class="choice-btn" data-index="1" data-place="tens">Tens</button>
-          <button class="choice-btn" data-index="1" data-place="ones">Ones</button>
-        </div>
-      </div>
+      `).join("")}
 
       <button class="check-btn" id="check-type1-btn">Check My Answer</button>
     </div>
@@ -389,20 +323,19 @@ function attachType1Events() {
   checkBtn.addEventListener("click", () => {
     if (state.answered) return;
 
-    const selected0 = state.type1Selections[0];
-    const selected1 = state.type1Selections[1];
+    const selected = [0, 1, 2].map((index) => state.type1Selections[index]);
 
-    if (!selected0 || !selected1) {
+    if (selected.some((place) => place === null)) {
       resultArea.innerHTML = `
         <div class="result-panel error">
-          <h3>Choose both places first!</h3>
-          <p>Pick Tens or Ones for each digit.</p>
+          <h3>Choose all three places first!</h3>
+          <p>Pick Hundreds, Tens, or Ones for each digit.</p>
         </div>
       `;
       return;
     }
 
-    const correct = selected0 === "tens" && selected1 === "ones";
+    const correct = selected.every((place, index) => Number(place) === index);
 
     if (correct) {
       state.answered = true;
@@ -440,7 +373,7 @@ function attachType2Events() {
       if (state.answered) return;
       playClickTone();
       const input = document.getElementById("answer-input");
-      if (input.value.length >= 2) return;
+      if (input.value.length >= 3) return;
       input.value += button.dataset.digit;
     });
   });
@@ -485,112 +418,57 @@ function attachType2Events() {
   });
 }
 
-function buildType3Board(question) {
+function buildChoiceBoard(question) {
   return `
     <div class="type1-board">
       <div class="choice-pair">
         ${question.choices
           .map(
             (choice) => `
-              <button class="choice-btn type3-choice" data-choice="${choice}">${choice}</button>
+              <button class="choice-btn answer-choice" data-choice="${choice}">${choice}</button>
             `
           )
           .join("")}
       </div>
-      <button class="check-btn" id="check-type3-btn">Check My Answer</button>
+      <button class="check-btn" id="check-choice-btn">Check My Answer</button>
     </div>
   `;
 }
 
-function attachType3Events() {
-  const buttons = document.querySelectorAll(".type3-choice");
+function attachChoiceEvents() {
+  const buttons = document.querySelectorAll(".answer-choice");
   buttons.forEach((button) => {
     button.addEventListener("click", () => {
       if (state.answered) return;
       playClickTone();
-      state.type3Selection = button.dataset.choice;
+      state.selectedChoice = button.dataset.choice;
 
       buttons.forEach((choiceButton) => {
-        choiceButton.classList.toggle("selected", choiceButton.dataset.choice === state.type3Selection);
+        choiceButton.classList.toggle("selected", choiceButton.dataset.choice === state.selectedChoice);
       });
     });
   });
 
-  const checkBtn = document.getElementById("check-type3-btn");
+  const checkBtn = document.getElementById("check-choice-btn");
   checkBtn.addEventListener("click", () => {
     if (state.answered) return;
 
-    if (!state.type3Selection) {
+    if (state.selectedChoice === null) {
       resultArea.innerHTML = `
         <div class="result-panel error">
           <h3>Choose an answer first!</h3>
-          <p>Pick the correct number name.</p>
+          <p>Choose one of the answers.</p>
         </div>
       `;
       return;
     }
 
-    if (state.type3Selection === state.currentQuestion.answer) {
+    if (Number(state.selectedChoice) === state.currentQuestion.answer) {
       state.answered = true;
       handleCorrectAnswer();
     } else {
       state.answered = true;
-      handleIncorrectType3Answer();
-    }
-  });
-}
-
-function buildType4Board(question) {
-  return `
-    <div class="type1-board">
-      <div class="choice-pair">
-        ${question.choices
-          .map(
-            (choice) => `
-              <button class="choice-btn type4-choice" data-choice="${choice}">${choice}</button>
-            `
-          )
-          .join("")}
-      </div>
-      <button class="check-btn" id="check-type4-btn">Check My Answer</button>
-    </div>
-  `;
-}
-
-function attachType4Events() {
-  const buttons = document.querySelectorAll(".type4-choice");
-  buttons.forEach((button) => {
-    button.addEventListener("click", () => {
-      if (state.answered) return;
-      playClickTone();
-      state.type4Selection = button.dataset.choice;
-
-      buttons.forEach((choiceButton) => {
-        choiceButton.classList.toggle("selected", choiceButton.dataset.choice === state.type4Selection);
-      });
-    });
-  });
-
-  const checkBtn = document.getElementById("check-type4-btn");
-  checkBtn.addEventListener("click", () => {
-    if (state.answered) return;
-
-    if (!state.type4Selection) {
-      resultArea.innerHTML = `
-        <div class="result-panel error">
-          <h3>Choose an answer first!</h3>
-          <p>Pick the correct value.</p>
-        </div>
-      `;
-      return;
-    }
-
-    if (state.type4Selection === String(state.currentQuestion.answer)) {
-      state.answered = true;
-      handleCorrectAnswer();
-    } else {
-      state.answered = true;
-      handleIncorrectType4Answer();
+      handleIncorrectChoiceAnswer();
     }
   });
 }
@@ -626,26 +504,21 @@ function handleIncorrectType1Answer() {
     const rowButtons = row.querySelectorAll(".choice-btn");
     rowButtons.forEach((button) => {
       button.classList.remove("selected");
-      if (rowIndex === 0 && button.dataset.place === "tens") {
+      if (Number(button.dataset.place) === rowIndex) {
         button.classList.add("correct");
       }
-      if (rowIndex === 1 && button.dataset.place === "ones") {
-        button.classList.add("correct");
-      }
-      if (button.dataset.place !== (rowIndex === 0 ? "tens" : "ones")) {
+      if (Number(button.dataset.place) !== rowIndex) {
         button.classList.add("incorrect");
       }
     });
   });
 
-  const tensDigit = Math.floor(state.currentQuestion.number / 10);
-  const onesDigit = state.currentQuestion.number % 10;
+  const digits = getDigits(state.currentQuestion.number);
 
   resultArea.innerHTML = `
     <div class="result-panel error">
       <h3>Correct Answer</h3>
-      <p>${tensDigit} → Tens</p>
-      <p>${onesDigit} → Ones</p>
+      ${digits.map((digit, index) => `<p>${digit} → ${placeLabels[index]}</p>`).join("")}
     </div>
   `;
 
@@ -680,52 +553,20 @@ function handleIncorrectType2Answer() {
   resultArea.appendChild(nextButton);
 }
 
-function handleIncorrectType3Answer() {
+function handleIncorrectChoiceAnswer() {
   setCharacterMood("incorrect");
   playErrorTone();
   speechBubble.textContent = "That's not correct. Try again.";
 
-  const buttons = document.querySelectorAll(".type3-choice");
+  const buttons = document.querySelectorAll(".answer-choice");
   buttons.forEach((button) => {
     button.classList.remove("selected");
 
-    if (button.dataset.choice === state.currentQuestion.answer) {
+    if (Number(button.dataset.choice) === state.currentQuestion.answer) {
       button.classList.add("correct");
     }
 
-    if (button.dataset.choice === state.type3Selection) {
-      button.classList.add("incorrect");
-    }
-  });
-
-  resultArea.innerHTML = `
-    <div class="result-panel error">
-      <h3>Correct Answer</h3>
-      <p>${state.currentQuestion.answer}</p>
-    </div>
-  `;
-
-  const nextButton = document.createElement("button");
-  nextButton.className = "next-btn";
-  nextButton.textContent = "Next Question";
-  nextButton.addEventListener("click", nextQuestion);
-  resultArea.appendChild(nextButton);
-}
-
-function handleIncorrectType4Answer() {
-  setCharacterMood("incorrect");
-  playErrorTone();
-  speechBubble.textContent = "That's not correct. Try again.";
-
-  const buttons = document.querySelectorAll(".type4-choice");
-  buttons.forEach((button) => {
-    button.classList.remove("selected");
-
-    if (button.dataset.choice === String(state.currentQuestion.answer)) {
-      button.classList.add("correct");
-    }
-
-    if (button.dataset.choice === state.type4Selection) {
+    if (button.dataset.choice === state.selectedChoice) {
       button.classList.add("incorrect");
     }
   });
